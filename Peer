@@ -1,0 +1,604 @@
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+class Peer2Peer extends Thread {
+
+	Socket s, s1;
+	InetAddress hostName = null;
+	int port = 9000;
+	PrintWriter out = null, out1 = null;
+	BufferedReader in = null, in1 = null;
+	static int peerNumber;
+	InetAddress ipAddr;
+	Coordinates myCoord;
+	static InetAddress peerAddr;
+	static InetAddress peerAddr1;
+	static boolean check;
+	ServerSocket aServer;
+	Coordinates neighbourcoord = new Coordinates();
+	InetAddress neighbourip = null;
+	Nodes peer = null;
+	static InetAddress ip5;
+
+	public Peer2Peer() {
+	}
+
+	public Peer2Peer(Nodes peer) {
+		this.peer = peer;
+	}
+
+	public Peer2Peer(InetAddress name, int port) {
+		hostName = name;
+		this.port = port;
+	}
+
+	public void parseArgs(String input)  {
+		try{
+		hostName=InetAddress.getByName(input);
+		}catch(Exception e){
+			System.out.println("IP not valid");
+			System.exit(1);
+		}
+	}
+
+	public void createIOconections() throws Exception {
+		try {
+			s = new Socket(hostName, port);
+			out = new PrintWriter(s.getOutputStream(), true);
+			in = new BufferedReader(new InputStreamReader(s.getInputStream()));
+		} catch (Exception e) {
+			System.out.println("Failure !!! Enter the correct IP Address next Time");
+			System.exit(1);
+		}
+	}
+
+	public void closeIOconections() throws Exception {
+		try {
+			in.close();
+			out.close();
+			s.close();
+		} catch (Exception e) {
+			System.out.println(e.toString());
+			System.exit(1);
+		}
+	}
+
+	public void readAndPrint() throws Exception {
+		peerNumber = Integer.parseInt(in.readLine());
+
+		if (peerNumber == 0) {
+			ipAddr = InetAddress.getLocalHost();
+			out.println(ipAddr);
+			peerAddr = ipAddr;
+			myCoord = new Coordinates(0, 0, 10, 10);
+			Nodes peer = new Nodes(ipAddr, myCoord);
+			peer.peerNumber = peerNumber;
+			System.out.println("Peer: " + peer.peerNumber + ": "
+					+ peer.ipAddr);
+			System.out.println("My zone is:");
+			System.out.println(peer.myCoord);
+			peer.displayNeighbours();
+			peer.displayFiles();
+			new Peer2Peer(peer).start();
+			server(myCoord, peer);
+
+		} else if (peerNumber == 1) {
+			InetAddress ip3 = InetAddress.getLocalHost();
+			out.println(ip3);
+			String input = in.readLine();
+			String[] name = input.split("/");
+			String ip = name[1].replace("/", "");
+			peerAddr = InetAddress.getByName(ip);
+			String xs = in.readLine();
+			String ys = in.readLine();
+			int x = Integer.parseInt(xs);
+			int y = Integer.parseInt(ys);
+			ipAddr = InetAddress.getLocalHost();
+			myCoord = getmyzone(x, y);
+			Nodes peer = new Nodes(ipAddr, myCoord);
+			peer.peerNumber = peerNumber;
+			peer.updateTable(neighbourip, neighbourcoord);
+			peer.checkNeighbours();System.out.println("Peer: " + peer.peerNumber + ": "
+					+ peer.ipAddr);
+			System.out.println("My zone is:");
+			System.out.println(peer.myCoord);
+			peer.displayNeighbours();
+			peer.displayFiles();
+			new Peer2Peer(peer).start();
+			server(myCoord, peer);
+		} else {
+			String input = in.readLine();
+			String[] name = input.split("/");
+			String ip = name[1].replace("/", "");
+			peerAddr = InetAddress.getByName(ip);
+			String xs = in.readLine();
+			String ys = in.readLine();
+			int x = Integer.parseInt(xs);
+			int y = Integer.parseInt(ys);
+			ipAddr = InetAddress.getLocalHost();
+			myCoord = getmyzone(x, y);
+			Nodes peer = new Nodes(ipAddr, myCoord);
+			peer.peerNumber = peerNumber;
+			peer.updateTable(neighbourip, neighbourcoord);
+			peer.checkNeighbours();
+			System.out.println("Peer: " + peer.peerNumber + ": "
+					+ peer.ipAddr);
+			System.out.println("My zone is:");
+			System.out.println(peer.myCoord);
+			peer.displayNeighbours();
+			peer.displayFiles();
+			new Peer2Peer(peer).start();			
+			server(myCoord, peer);
+		}
+
+	}
+
+	public Coordinates getmyzone(int x, int y) throws Exception {
+		return connect(peerAddr, x, y);
+	}
+
+	public Coordinates connect(InetAddress hostname, int x, int y)
+			throws Exception {
+		try {
+			s1 = new Socket(hostname, port);
+			out1 = new PrintWriter(s1.getOutputStream(), true);
+			in1 = new BufferedReader(new InputStreamReader(s1.getInputStream()));
+			out1.println(1);
+			out1.println(x);
+			out1.println(y);
+			int z = Integer.parseInt(in1.readLine());
+			if (z == 1) {
+				out1.println(ipAddr);
+				float x1 = Float.parseFloat(in1.readLine());
+				float y1 = Float.parseFloat(in1.readLine());
+				float x2 = Float.parseFloat(in1.readLine());
+				float y2 = Float.parseFloat(in1.readLine());
+				float ax1 = Float.parseFloat(in1.readLine());
+				float ay1 = Float.parseFloat(in1.readLine());
+				float ax2 = Float.parseFloat(in1.readLine());
+				float ay2 = Float.parseFloat(in1.readLine());
+				neighbourip = hostname;
+				neighbourcoord = new Coordinates(ax1, ay1, ax2, ay2);
+				return (new Coordinates(x1, y1, x2, y2));
+			} else {
+				String input = in1.readLine();
+				String[] name = input.split("/");
+				String ip = name[1].replace("/", "");
+				InetAddress peer1 = InetAddress.getByName(ip);
+				return connect(peer1, x, y);
+			}
+		} catch (Exception e) {
+			System.out.println("Failure");
+			System.out.println(e.toString());
+			System.exit(1);
+		}
+
+		finally {
+			try {
+				s1.close();
+			} catch (IOException e) {
+				System.out.println("Couldn't close a socket, what's going on?");
+			}
+		}
+		return (new Coordinates(0, 0, 0, 0));
+	}
+
+	public void server(Coordinates myCoord, Nodes peer)
+			throws UnknownHostException {
+		try {
+			aServer = new ServerSocket(port);
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+		try {
+			while (true) {
+				new Server(aServer.accept(), myCoord, peer).start();
+				
+			}
+
+		} catch (Exception e) {
+			System.out.println(e);
+		} finally {
+			try {
+				aServer.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public void doTheJob() {
+		try {
+			Peer2Peer aPeer2Peer = new Peer2Peer(hostName, port);
+			createIOconections();
+			readAndPrint();
+			closeIOconections();
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+	}
+
+	public int hashX(String key) {
+		char[] keychar = key.toCharArray();
+		int sum = 0;
+		for (int i = 0; i < key.length(); i++) {
+			if (i % 2 != 0) {
+				sum += (int) keychar[i];
+			}
+		}
+		int hashx = sum % 10;
+		return hashx;
+	}
+
+	public int hashY(String key) {
+		char[] keychar = key.toCharArray();
+		int sum = 0;
+		for (int i = 0; i < key.length(); i++) {
+			if (i % 2 == 0) {
+				sum += (int) keychar[i];
+			}
+		}
+		int hashy = sum % 10;
+		return hashy;
+	}
+
+	public boolean Insert(String key) throws Exception {
+		int x = hashX(key);
+		int y = hashY(key);
+		File file = new File(key);
+		if (!file.exists())
+			return false;
+		boolean result = sendFile(x, y, file, key);
+		if (result)
+			return true;
+		else {
+			System.out.println("Failure");
+			return false;
+		}
+	}
+
+	public boolean sendFile(int x, int y, File file, String key)
+			throws Exception {
+		Coordinates myCoord = peer.myCoord;
+		boolean bool = true;
+		int n;
+		byte[] buffer = new byte[(int) file.length()];
+		if ((x >= myCoord.getx1()) && (x <= myCoord.getx2())
+				&& (y >= myCoord.gety1()) && (y <= myCoord.gety2())) {
+			peer.files.put(key, file);
+			System.out.println("Destionation Peer: " + this.peer.peerNumber
+					+ " : " + this.peer.ipAddr);
+			System.out.println("Route taken: " + this.peer.peerNumber + " : "
+					+ this.peer.ipAddr);
+		} else {
+			Coordinates got = null;
+			InetAddress ip1 = null;
+			float min = 200;
+			Enumeration e = peer.neighbours.keys();
+			System.out.println("Route taken: " + this.peer.peerNumber + " : "
+					+ this.peer.ipAddr );
+			Object e1 = null;
+			while (e.hasMoreElements()) {
+				e1 = e.nextElement();
+				Coordinates coord = (Coordinates) peer.neighbours.get(e1);
+				float xa = (coord.getx2() + coord.getx1()) / 2;
+				float ya = (coord.gety2() + coord.gety1()) / 2;
+				if (((x - xa) * (x - xa) + (y - ya) * (y - ya)) < min) {
+					got = coord;
+					min = ((x - xa) * (x - xa) + (y - ya) * (y - ya));
+					ip1 = (InetAddress) e1;
+				}
+			}
+
+			bool = conn(ip1, x, y, file, key);
+
+		}
+		return bool;
+
+	}
+
+	public boolean conn(InetAddress ip1, int x, int y, File file, String key)
+			throws Exception {
+		try {
+			s1 = new Socket(ip1, port);
+			out1 = new PrintWriter(s1.getOutputStream(), true);
+			in1 = new BufferedReader(new InputStreamReader(s1.getInputStream()));
+			DataInputStream in;
+			out1.println(4);
+			out1.println(x);
+			out1.println(y);
+			out1.println(key);
+			int peerNum = Integer.parseInt(in1.readLine());
+			System.out.println(peerNum + ": " + ip1);
+			byte[] buffer = new byte[(int) file.length()];
+			int z = Integer.parseInt(in1.readLine());
+			if (z == 1) {
+				System.out.println("Destionation Peer: " + peerNum + " : "
+						+ ip1);
+				byte[] mybytearray = new byte[(int) file.length()];
+				out1.println(file.length());
+				BufferedInputStream bis = new BufferedInputStream(
+						new FileInputStream(file));
+				bis.read(mybytearray, 0, mybytearray.length);
+				OutputStream os = s1.getOutputStream();
+				os.write(mybytearray, 0, mybytearray.length);
+				os.flush();
+				s1.close();
+				return true;
+			} else if(z==2) {
+				String input = in1.readLine();
+				String[] name = input.split("/");
+				String ip = name[1].replace("/", "");
+				InetAddress peer1 = InetAddress.getByName(ip);
+				return conn(peer1, x, y, file, key);
+			}else{
+				System.out.println("Destionation Peer: " + peerNum + " : "
+						+ ip1);
+			}
+		} catch (Exception e) {
+			System.out.println(e.toString());
+			System.exit(1);
+		}
+
+		finally {
+			try {
+				s1.close();
+			} catch (IOException e) {
+				System.out.println("Couldn't close a socket, what's going on?");
+			}
+		}
+		return true;
+	}
+
+	public boolean search(String key) throws Exception {
+		int x = hashX(key);
+		int y = hashY(key);
+		boolean result = receiveFile(x, y, key);
+		if (result)
+			return true;
+		else {
+			System.out.println("Failure");
+			return false;
+		}
+	}
+
+	public boolean receiveFile(int x, int y, String key) throws Exception {
+		Coordinates myCoord = peer.myCoord;
+		boolean bool = true;
+		if ((x >= myCoord.getx1()) && (x <= myCoord.getx2())
+				&& (y >= myCoord.gety1()) && (y <= myCoord.gety2())) {
+			System.out.println("This File is with me: " + this.peer.peerNumber
+					+ " : " + this.peer.ipAddr);
+			System.out.println("Route taken: " + this.peer.peerNumber + " : "
+					+ this.peer.ipAddr);
+		} else {
+			Coordinates got = null;
+			InetAddress ip1 = null;
+			float min = 200;
+			Enumeration e = peer.neighbours.keys();
+			System.out.println("Route taken: " + this.peer.peerNumber + " : "
+					+ this.peer.ipAddr);
+			Object e1 = null;
+			while (e.hasMoreElements()) {
+				e1 = e.nextElement();
+				Coordinates coord = (Coordinates) peer.neighbours.get(e1);
+				float xa = (coord.getx2() + coord.getx1()) / 2;
+				float ya = (coord.gety2() + coord.gety1()) / 2;
+				if (((x - xa) * (x - xa) + (y - ya) * (y - ya)) < min) {
+					got = coord;
+					min = ((x - xa) * (x - xa) + (y - ya) * (y - ya));
+					ip1 = (InetAddress) e1;
+				}
+			}
+			bool = contact(ip1, x, y, key);
+
+		}
+		return bool;
+	}
+
+	public boolean contact(InetAddress ip1, int x, int y, String key)
+			throws Exception {
+		try {
+			s1 = new Socket(ip1, port);
+			out1 = new PrintWriter(s1.getOutputStream(), true);
+			in1 = new BufferedReader(new InputStreamReader(s1.getInputStream()));
+			out1.println(5);
+			out1.println(x);
+			out1.println(y);
+			out1.println(key);
+			int peerNum = Integer.parseInt(in1.readLine());
+			System.out.println(peerNum + " : " + ip1 );
+			String key1 = key;
+			File myfile = new File(key1);
+			int z = Integer.parseInt(in1.readLine());
+
+			if (z == 1) {
+				int a=Integer.parseInt(in1.readLine());
+				if(a==10){
+					System.out.println("File does not exist in the network");
+					return false;
+				}
+				System.out.println("Source Peer: " + peerNum + " : "
+						+ ip1);
+				s1.close();
+				return true;
+			} else {
+				String input = in1.readLine();
+				String[] name = input.split("/");
+				String ip = name[1].replace("/", "");
+				InetAddress peer1 = InetAddress.getByName(ip);
+
+				return contact(peer1, x, y, key);
+			}
+		} catch (Exception e) {
+			System.out.println(e.toString());
+			System.exit(1);
+		}
+
+		finally {
+			try {
+				s1.close();
+			} catch (IOException e) {
+				System.out.println("Couldn't close a socket, what's going on?");
+			}
+		}
+		return true;
+	}
+
+	public void view() {
+		System.out.println("Peer: " + this.peer.peerNumber + ": "
+				+ this.peer.ipAddr);
+		System.out.println("My zone is:");
+		System.out.println(peer.myCoord);
+		peer.displayNeighbours();
+		peer.displayFiles();
+	}
+
+	public boolean leave() throws Exception {
+		if (this.peer.neighbours.size()>1) {
+			System.out.println("Sorry You cannot leave the network");
+			return true;
+		}
+		else if (this.peer.neighbours.size()<1)  {
+			System.out.println("Sorry You cannot leave the network");
+			return true;
+		}
+		else  {
+			cont();
+			return false;
+		}
+	}
+
+	public void cont() throws Exception {
+		String me = this.peer.ipAddr.toString();
+		String you = peerAddr.toString();
+		if ((me.equals(you))) {
+			Enumeration e = this.peer.neighbours.keys();
+			Object e1 = null;
+			while (e.hasMoreElements()) {
+				e1 = (InetAddress) e.nextElement();
+
+			}
+			ip5 = (InetAddress) e1;
+			// System.out.println("here");
+
+		} else {
+			Enumeration e = this.peer.neighbours.keys();
+			Object e1 = null;
+			while (e.hasMoreElements()) {
+				e1 = e.nextElement();
+			}
+			ip5 = (InetAddress) e1;
+		}
+		try {
+			s1 = new Socket(ip5, port);
+			out1 = new PrintWriter(s1.getOutputStream(), true);
+			in1 = new BufferedReader(new InputStreamReader(s1.getInputStream()));
+			out1.println(6);
+			Enumeration e = this.peer.files.keys();
+			Object e1 = null;
+			File file=null;
+			while (e.hasMoreElements()) {
+				e1 = e.nextElement();
+				out1.println((String) e1);
+				file=new File((String)e1);
+				byte[] mybytearray = new byte[(int) file.length()];
+				out1.println(file.length());
+				BufferedInputStream bis = new BufferedInputStream(
+						new FileInputStream(file));
+				bis.read(mybytearray, 0, mybytearray.length);
+				OutputStream os = s1.getOutputStream();
+				os.write(mybytearray, 0, mybytearray.length);
+				os.flush();
+			}
+
+			this.peer.neighbours.remove(ip5);
+		} catch (Exception e5) {
+			System.out.println(e5.toString());
+			System.exit(1);
+		} finally {
+			try {
+				s1.close();
+			} catch (IOException e) {
+				System.out.println("Couldn't close a socket, what's going on?");
+			}
+		}
+	}
+
+	public void run() {
+		boolean stop = true;
+		String filename;
+		Scanner get = new Scanner(System.in);
+		while (stop) {
+			System.out.println("Enter the Command: ");
+			String input = get.nextLine();
+
+			switch (input) {
+
+			case "INSERT":
+				System.out.println("Enter the File name");
+				filename = get.nextLine();
+				try {
+					if (Insert(filename)) {
+						System.out.println("File Insertion Successful");
+					} else {
+						System.out.println("Failure");
+					}
+				} catch (Exception e) {
+					System.out.println(e);
+				}
+				break;
+			case "SEARCH":
+				System.out.println("Enter the File name");
+				filename = get.nextLine();
+				try {
+					if (search(filename)) {
+						System.out.println("File found");
+
+					}
+				} catch (Exception e) {
+					System.out.println(e);
+				}
+				break;
+			case "VIEW":
+				view();
+				break;
+			case "LEAVE":
+				try {
+					if (!leave())
+						stop = false;
+				} catch (Exception e) {
+					System.out.println(e);
+				}
+				break;
+			default:
+				System.out.println("Invalid Command: " + input);
+			}
+
+		}
+		System.exit(1);
+	}
+
+	public static void main(String[] args) throws UnknownHostException {
+		Peer2Peer peer = new Peer2Peer();
+		System.out.println("You can perform the following Operations: ");
+		System.out.println("INSERT File");
+		System.out.println("SEARCH File");
+		System.out.println("VIEW the Peer Info");
+		System.out.println("JOIN the Network");
+		System.out.println("LEAVE the Network");
+		System.out.println("To Join the Network, Enter JOIN");
+		Scanner in=new Scanner(System.in);
+		String inp=in.nextLine();
+		if(inp.equals("JOIN")){			
+			System.out.println("Enter the Ip Address of the Bootstrap Server");
+			String input = in.nextLine();
+			peer.parseArgs(input);
+			peer.doTheJob();
+		}else{
+			System.out.println("Error !!!");
+		}
+	}
+
+}
