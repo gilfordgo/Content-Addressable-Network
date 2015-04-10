@@ -1,0 +1,179 @@
+import java.net.*;
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.io.*;
+
+class Nodes {
+	InetAddress ipAddr;
+	Coordinates myCoord = new Coordinates();
+	int port = 9000;
+	Hashtable<InetAddress, Coordinates> neighbours = new Hashtable<InetAddress, Coordinates>();
+	Hashtable<InetAddress, Coordinates> dummy = new Hashtable<InetAddress, Coordinates>();
+	Hashtable<String, File> files = new Hashtable<String, File>();
+	Socket s, s1;
+	int peerNumber=0;
+
+	Nodes(InetAddress ip, Coordinates coord) {
+		this.ipAddr = ip;
+		this.myCoord = coord;
+	}
+
+	public Coordinates neighbourUpdate() {
+		float x1 = myCoord.getx1();
+		float x2 = myCoord.getx2();
+		float y1 = myCoord.gety1();
+		float y2 = myCoord.gety2();
+		return (new Coordinates(0, 0, 0, 0));
+	}
+
+	public void add(InetAddress ip, Coordinates co) {
+		dummy.put(ip, co);
+	}
+
+	public void informNeighbours(float x1,float y1,float x2,float y2,InetAddress ip2) throws Exception {
+		Enumeration e = this.neighbours.keys();
+		Object e1;
+		while (e.hasMoreElements()) {
+			e1 = e.nextElement();
+			InetAddress ip = (InetAddress) e1;
+			String hostIP = ip.getHostAddress();
+			contact(hostIP,x1,y1,x2,y2,ip2);
+		}
+
+	}
+
+	public void checkNeighbours() throws Exception {
+		Enumeration e = this.neighbours.keys();
+		Object e1=null;
+		while (e.hasMoreElements()) {
+			e1 = e.nextElement();
+			Coordinates coord = (Coordinates) this.neighbours.get(e1);
+			InetAddress ip = (InetAddress) e1;
+			String hostIP = ip.getHostAddress();
+			connect(hostIP, coord);
+		}
+	}
+
+	public void updateTable(InetAddress ip, Coordinates coord) {
+		neighbours.put(ip, coord);
+	}
+
+	public void displayNeighbours() {
+		System.out.println("My neighbours:");
+		Enumeration e = this.neighbours.keys();
+		Object e1=null;
+		while (e.hasMoreElements()) {
+			e1 = e.nextElement();
+			Coordinates coord = (Coordinates) this.neighbours.get(e1);
+			System.out.println(e1 + " " + coord);
+		}
+	}
+	
+	public void displayFiles() {
+		
+		
+		System.out.println("I have Following files:");
+		
+		String file;
+		Enumeration e = this.files.keys();
+		while (e.hasMoreElements()) {
+			file=(String)e.nextElement();
+			System.out.println(file);
+		}
+	}
+
+	public void connect(String ip, Coordinates coord) throws Exception {
+		InetAddress ipAddr = InetAddress.getByName(ip);
+		try {
+			s = new Socket(ipAddr, port);
+			PrintWriter out = new PrintWriter(s.getOutputStream(), true);
+			BufferedReader in = new BufferedReader(new InputStreamReader(
+					s.getInputStream()));
+			out.println(2);
+			String a;
+			while ((a = in.readLine()) != null) {
+				float x1 = Float.parseFloat(a);
+				float y1 = Float.parseFloat(in.readLine());
+				float x2 = Float.parseFloat(in.readLine());
+				float y2 = Float.parseFloat(in.readLine());
+
+				String input = in.readLine();
+				String[] name = input.split("/");
+				String ip1 = name[1].replace("/", "");
+				InetAddress ip2 = InetAddress.getByName(ip1);
+				if (x1 != myCoord.getx1() || x2 != myCoord.getx2()
+						|| y1 != myCoord.gety1() || y2 != myCoord.gety2()) {
+					if (((x1 ==  myCoord.getx2()) && ((y2 >  myCoord.gety1()) && ((y1 <  myCoord
+							.gety2()))))
+							|| (((x2 >  myCoord.getx1()) && (x1 <  myCoord.getx2())) && (y1 ==  myCoord
+									.gety2()))
+							|| (( myCoord.getx1() == x2) && ((y2 >  myCoord.gety1()) && (y1 < myCoord
+									.gety2())))
+							|| ((x2 >  myCoord.getx1()) && (x1 <  myCoord.getx2()) && (y2 ==  myCoord
+									.gety1()))) {
+				
+						this.neighbours.put(ip2, new Coordinates(x1, y1, x2, y2));
+					
+					}
+				
+				}
+			}
+			
+		} catch (Exception e) {
+			System.out.println(e.toString());
+			System.exit(1);
+		} finally {
+			try {
+				s.close();
+			} catch (IOException e) {
+				System.out.println("Couldn't close a socket, what's going on?");
+			}
+
+		}
+	}
+
+	public void contact(String ip,float x1,float y1,float x2,float y2,InetAddress ip2) throws UnknownHostException {
+		InetAddress ip1 = InetAddress.getByName(ip);
+		try {
+
+			s1 = new Socket(ip1, port);
+			PrintWriter out = new PrintWriter(s1.getOutputStream(), true);
+			BufferedReader in = new BufferedReader(new InputStreamReader(
+					s1.getInputStream()));
+			out.println(3);
+			out.println(myCoord.getx1());
+			out.println(myCoord.gety1());
+			out.println(myCoord.getx2());
+			out.println(myCoord.gety2());			
+			out.println(ipAddr);
+			out.println(x1);
+			out.println(y1);
+			out.println(x2);
+			out.println(y2);
+			out.println(ip2);
+			boolean set=Boolean.parseBoolean(in.readLine());
+			if(set){
+			String input = in.readLine();
+			String[] name = input.split("/");
+			String ip3 = name[1].replace("/", "");
+			InetAddress ip4 = InetAddress.getByName(ip3);
+			float ax1 = Float.parseFloat(in.readLine());
+			float ay1 = Float.parseFloat(in.readLine());
+			float ax2 = Float.parseFloat(in.readLine());
+			float ay2 = Float.parseFloat(in.readLine());
+			this.dummy.put(ip4, new Coordinates(ax1,ay1,ax2,ay2));
+			this.neighbours.remove(ip4);			
+			}
+		} catch (Exception e) {
+			System.out.println(e.toString());
+			System.exit(1);
+
+		} finally {
+			try {
+				s1.close();
+			} catch (IOException e) {
+				System.out.println("Couldn't close a socket, what's going on?");
+			}
+		}
+	}
+}
