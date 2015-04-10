@@ -1,0 +1,54 @@
+class Coordinates {
+	private float x1;
+	private float y1;
+	private float x2;
+	private float y2;
+
+	public Coordinates() {
+		this(0, 0, 0, 0);
+	}
+
+	public Coordinates(float x1, float y1, float x2, float y2) {
+		this.x1 = x1;
+		this.y1 = y1;
+		this.x2 = x2;
+		this.y2 = y2;
+	}
+
+	public float getx1() {
+		return x1;
+	}
+
+	public float gety1() {
+		return y1;
+	}
+
+	public float getx2() {
+		return x2;
+	}
+
+	public float gety2() {
+		return y2;
+	}
+
+	public void setx1(float x) {
+		this.x1 = x;
+	}
+
+	public void sety1(float y) {
+		this.y1 = y;
+	}
+
+	public void setx2(float x) {
+		this.x2 = x;
+	}
+
+	public void sety2(float y) {
+		this.y2 = y;
+	}
+
+	public String toString() {
+		return ("x1=" + x1 + " y1=" + y1 + " x2=" + x2 + " y2=" + y2);
+
+	}
+}
