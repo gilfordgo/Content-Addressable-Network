@@ -1,0 +1,344 @@
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+class Server extends Thread {
+	private Socket socket;
+	private ServerSocket aServer;
+	Coordinates coord;
+	Nodes peer;
+	int port = 9000;
+	int id = 0;
+	int number = 0;
+
+	public Server(Socket socket, Coordinates myCoord, Nodes peer) {
+		this.socket = socket;
+		this.coord = myCoord;
+		this.peer = peer;
+	}
+
+	public void run() {
+		try {
+			BufferedReader in = new BufferedReader(new InputStreamReader(
+					socket.getInputStream()));
+			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+			int id = Integer.parseInt(in.readLine());
+			if (id == 1) {
+				int x = Integer.parseInt(in.readLine());
+				int y = Integer.parseInt(in.readLine());
+				float ax1, ay1, ax2, ay2;
+				float x1 = coord.getx1();
+				float y1 = coord.gety1();
+				float x2 = coord.getx2();
+				float y2 = coord.gety2();
+
+				if (x >= x1 && x <= x2 && y >= y1 && y <= y2) {
+					if ((x2 - x1) == (y2 - y1)) {
+						ax2 = (x2 + x1) / 2;
+						ax1 = x1;
+						ay1 = y1;
+						ay2 = y2;
+						if (x >= ax1 && x <= ax2 && y >= ay1 && y <= ay2) {
+							coord.setx1(ax2);
+							x1 = ax1;
+							y1 = coord.gety1();
+							y2 = coord.gety2();
+							x2 = ax2;
+						} else {
+							coord.setx2(ax2);
+							x1 = coord.getx2();
+							y1 = coord.gety1();
+							y2 = coord.gety2();
+							x2 = x2;
+						}
+					} else {
+						ay2 = (y2 + y1) / 2;
+						ax1 = x1;
+						ay1 = y1;
+						ax2 = y2;
+						if (x >= ax1 && x <= ax2 && y >= ay1 && y <= ay2) {
+							coord.sety1(ay2);
+							x1 = coord.getx1();
+							y1 = ay1;
+							y2 = ay2;
+							x2 = coord.getx2();
+						} else {
+							coord.sety2(ay2);
+							x1 = coord.getx1();
+							y1 = coord.gety2();
+							y2 = y2;
+							x2 = coord.getx2();
+						}
+					}
+					out.println("1");
+					String input = in.readLine();
+					String[] name = input.split("/");
+					String ip = name[1].replace("/", "");
+					InetAddress ipAddr = InetAddress.getByName(ip);
+					out.println(x1);
+					out.println(y1);
+					out.println(x2);
+					out.println(y2);
+					out.println(coord.getx1());
+					out.println(coord.gety1());
+					out.println(coord.getx2());
+					out.println(coord.gety2());
+					peer.informNeighbours(x1, y1, x2, y2, ipAddr);
+					peer.updateTable(ipAddr, new Coordinates(x1, y1, x2, y2));
+
+				} else {
+					out.println("2");
+					float min = 200;
+					Coordinates got = null;
+					InetAddress ip1 = null;
+					Enumeration e = peer.neighbours.keys();
+					Object e1 = null;
+					while (e.hasMoreElements()) {
+						e1 = e.nextElement();
+						Coordinates coord = (Coordinates) peer.neighbours
+								.get(e1);
+						float xa = (coord.getx2() + coord.getx1()) / 2;
+						float ya = (coord.gety2() + coord.gety1()) / 2;
+						if (((x - xa) * (x - xa) + (y - ya) * (y - ya)) < min) {
+							got = coord;
+							min = ((x - xa) * (x - xa) + (y - ya) * (y - ya));
+							ip1 = (InetAddress) e1;
+						}
+					}
+					InetAddress ip = ip1;
+					out.println(ip);
+				}
+			} else if (id == 2) {
+				Enumeration e = peer.neighbours.keys();
+				Object e1 = null;
+				while (e.hasMoreElements()) {
+					e1 = e.nextElement();
+					Coordinates co = (Coordinates) peer.neighbours.get(e1);
+					InetAddress ip1 = (InetAddress) e1;
+					out.println(co.getx1());
+					out.println(co.gety1());
+					out.println(co.getx2());
+					out.println(co.gety2());
+					out.println(ip1);
+				}
+				Enumeration e10 = peer.dummy.keys();
+				Object e11 = null;
+				while (e10.hasMoreElements()) {
+					e11 = e10.nextElement();
+					Coordinates co = (Coordinates) peer.dummy.get(e11);
+					InetAddress ip2 = (InetAddress) e11;
+					out.println(co.getx1());
+					out.println(co.gety1());
+					out.println(co.getx2());
+					out.println(co.gety2());
+					out.println(ip2);
+					peer.dummy.remove(e11);
+				}
+
+			} else if (id == 3) {
+
+				float x1 = Float.parseFloat(in.readLine());
+				float y1 = Float.parseFloat(in.readLine());
+				float x2 = Float.parseFloat(in.readLine());
+				float y2 = Float.parseFloat(in.readLine());
+				String input = in.readLine();
+				String[] name = input.split("/");
+				String ip1 = name[0].replace("/", "");
+				boolean set = false;
+				InetAddress ip2 = InetAddress.getByName(ip1);
+				if (((x1 == coord.getx2()) && ((y2 > coord.gety1()) && ((y1 < coord
+						.gety2()))))
+						|| (((x2 > coord.getx1()) && (x1 < coord.getx2())) && (y1 == coord
+								.gety2()))
+						|| ((coord.getx1() == x2) && ((y2 > coord.gety1()) && (y1 < coord
+								.gety2())))
+						|| ((x2 > coord.getx1()) && (x1 < coord.getx2()) && (y2 == coord
+								.gety1()))) {
+					peer.updateTable(ip2, new Coordinates(x1, y1, x2, y2));
+				} else {
+					peer.neighbours.remove(ip2);
+					set = true;
+				}
+
+				float ax1 = Float.parseFloat(in.readLine());
+				float ay1 = Float.parseFloat(in.readLine());
+				float ax2 = Float.parseFloat(in.readLine());
+				float ay2 = Float.parseFloat(in.readLine());
+				String input1 = in.readLine();
+				String[] name1 = input1.split("/");
+				String ip3 = name1[1].replace("/", "");
+				InetAddress ip4 = InetAddress.getByName(ip3);
+				if (((ax1 == coord.getx2()) && ((ay2 > coord.gety1()) && ((ay1 < coord
+						.gety2()))))
+						|| (((ax2 > coord.getx1()) && (ax1 < coord.getx2())) && (ay1 == coord
+								.gety2()))
+						|| ((coord.getx1() == ax2) && ((ay2 > coord.gety1()) && (ay1 < coord
+								.gety2())))
+						|| ((ax2 > coord.getx1()) && (ax1 < coord.getx2()) && (ay2 == coord
+								.gety1()))) {
+
+					peer.updateTable(ip4, new Coordinates(ax1, ay1, ax2, ay2));
+				}
+				out.println(set);
+				if (set) {
+					out.println(peer.ipAddr);
+					out.println(peer.myCoord.getx1());
+					out.println(peer.myCoord.gety1());
+					out.println(peer.myCoord.getx2());
+					out.println(peer.myCoord.gety2());
+				}
+			} else if (id == 4) {
+
+				int x = Integer.parseInt(in.readLine());
+				int y = Integer.parseInt(in.readLine());
+				String key = in.readLine();
+				out.println(this.peer.peerNumber);
+				boolean bool = true;
+				float x1 = coord.getx1();
+				float y1 = coord.gety1();
+				float x2 = coord.getx2();
+				float y2 = coord.gety2();
+				String name = key;
+				File myfile = new File(name);
+				if (this.peer.files.contains(key)) {
+					out.println(3);
+				}
+				else{
+					if (x >= x1 && x <= x2 && y >= y1 && y <= y2) {
+						out.println(1);
+						peer.files.put(key, myfile);
+						int length = Integer.parseInt(in.readLine());
+						byte[] mybytearray = new byte[length];
+						InputStream is = socket.getInputStream();
+						FileOutputStream fos = new FileOutputStream(name);
+						BufferedOutputStream bos = new BufferedOutputStream(fos);
+						int bytesRead = is.read(mybytearray, 0,
+								mybytearray.length);
+						bos.write(mybytearray, 0, bytesRead);
+						bos.close();
+						number++;
+						socket.close();
+
+					} else {
+						out.println("2");
+						float min = 200;
+						Coordinates got = null;
+						InetAddress ip1 = null;
+						Enumeration e = peer.neighbours.keys();
+						Object e1 = null;
+						while (e.hasMoreElements()) {
+							e1 = e.nextElement();
+							Coordinates coord = (Coordinates) peer.neighbours
+									.get(e1);
+							float xa = (coord.getx2() + coord.getx1()) / 2;
+							float ya = (coord.gety2() + coord.gety1()) / 2;
+							if (((x - xa) * (x - xa) + (y - ya) * (y - ya)) < min) {
+								got = coord;
+								min = ((x - xa) * (x - xa) + (y - ya)
+										* (y - ya));
+								ip1 = (InetAddress) e1;
+							}
+						}
+						InetAddress ip = ip1;
+						out.println(ip);
+					}
+				}
+			}
+
+			else if (id == 5) {
+				int x = Integer.parseInt(in.readLine());
+				int y = Integer.parseInt(in.readLine());
+				String key = in.readLine();
+				out.println(this.peer.peerNumber);
+				String filename = null;
+				boolean bool = true;
+				float x1 = coord.getx1();
+				float y1 = coord.gety1();
+				float x2 = coord.getx2();
+				float y2 = coord.gety2();
+				int count = 0;
+
+				if (x >= x1 && x <= x2 && y >= y1 && y <= y2) {
+					out.println(1);
+					Enumeration e = peer.files.keys();
+					Object e1 = null;
+					while (e.hasMoreElements()) {
+						e1 = (String) e.nextElement();
+						if (e1.equals(key)) {
+							filename = (String) e1;
+							count++;
+						}
+					}
+					if (count == 0)
+						out.println(10);
+					else {
+						out.println(1);
+						socket.close();
+					}
+
+				} else {
+					out.println("2");
+					float min = 200;
+					Coordinates got = null;
+					InetAddress ip1 = null;
+					Enumeration e = peer.neighbours.keys();
+					Object e1 = null;
+					while (e.hasMoreElements()) {
+						e1 = e.nextElement();
+						Coordinates coord = (Coordinates) peer.neighbours
+								.get(e1);
+						float xa = (coord.getx2() + coord.getx1()) / 2;
+						float ya = (coord.gety2() + coord.gety1()) / 2;
+						if (((x - xa) * (x - xa) + (y - ya) * (y - ya)) < min) {
+							got = coord;
+							min = ((x - xa) * (x - xa) + (y - ya) * (y - ya));
+							ip1 = (InetAddress) e1;
+						}
+					}
+					InetAddress ip = ip1;
+					out.println(ip);
+				}
+			} else if (id == 6) {
+				Enumeration e = this.peer.neighbours.keys();
+				Object e1 = null;
+				while (e.hasMoreElements()) {
+					e1 = (InetAddress) e.nextElement();
+				}
+				String name = null;
+				File file = null;
+				String got = null;
+
+				while ((name = in.readLine()) != null) {
+					got = name;
+					file = new File(name);
+					this.peer.files.put(got, file);
+					int length = Integer.parseInt(in.readLine());
+					byte[] mybytearray = new byte[length];
+					InputStream is = socket.getInputStream();
+					FileOutputStream fos = new FileOutputStream(name);
+					BufferedOutputStream bos = new BufferedOutputStream(fos);
+					int bytesRead = is.read(mybytearray, 0, mybytearray.length);
+					bos.write(mybytearray, 0, bytesRead);
+					bos.close();
+				}
+				this.peer.myCoord.setx1(0);
+				this.peer.myCoord.setx2(10);
+				this.peer.neighbours.remove(e1);
+				System.out.println("A peer Left");
+				this.peer.displayNeighbours();
+				System.out.println("My new Coordinates");
+				System.out.println(this.peer.myCoord);
+			}
+
+		} catch (Exception e) {
+			System.out.println(e);
+		} finally {
+			try {
+				socket.close();
+			} catch (IOException e) {
+				System.out.println("Couldn't close a socket, what's going on?");
+			}
+		}
+
+	}
+}
